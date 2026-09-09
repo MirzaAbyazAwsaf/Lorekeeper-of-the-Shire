@@ -7,4 +7,7 @@ pypdf
 PyMuPDF
 fastapi
 uvicorn
+rank_bm25
+cohere
+nltk
 
