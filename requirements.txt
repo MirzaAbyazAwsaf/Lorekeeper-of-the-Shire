@@ -1,0 +1,10 @@
+langchain-core
+langchain-community
+langchain-ollama
+langchain-chroma
+langchain-text-splitters
+pypdf
+PyMuPDF
+fastapi
+uvicorn
+
