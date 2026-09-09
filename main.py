@@ -15,7 +15,7 @@ def format_passages(passages):
 
 def main():
     retriever = get_retriever()
-    model = OllamaLLM(model="llama3.2", client_kwargs={"trust_env": False})
+    model = OllamaLLM(model="qwen2.5:7b-instruct-q4_K_M", client_kwargs={"trust_env": False})
 
     template = """
 You are a world-renowned Tolkien scholar and lore-master with encyclopedic knowledge
