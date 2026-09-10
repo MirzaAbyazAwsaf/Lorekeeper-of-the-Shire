@@ -288,12 +288,20 @@ def get_retriever(k=6):
             hybrid: HybridRetriever
             reranker: CohereReranker
             k: int = 6
+            relevance_threshold: float = 0.3
 
             def _get_relevant_documents(self, query: str) -> list:
                 docs = self.hybrid.invoke(query)
-                return self.reranker.rerank(query, docs)
+                reranked = self.reranker.rerank(query, docs)
+                relevant = [
+                    d for d in reranked
+                    if d.metadata.get("relevance_score", 0) >= self.relevance_threshold
+                ]
+                return relevant
 
-        return RerankedRetriever(hybrid=hybrid_retriever, reranker=reranker, k=k)
+        return RerankedRetriever(
+            hybrid=hybrid_retriever, reranker=reranker, k=k, relevance_threshold=0.3
+        )
     else:
         print("Warning: COHERE_API_KEY not set. Skipping reranking.")
         return hybrid_retriever
