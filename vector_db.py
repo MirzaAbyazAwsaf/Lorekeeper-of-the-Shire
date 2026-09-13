@@ -18,6 +18,7 @@ BOOK_NAME_MAP = {
 }
 
 CHAPTER_RE = re.compile(r"Chapter\s+\d+", re.IGNORECASE)
+MD_HEADER_RE = re.compile(r"^#{1,6}\s+.+$", re.MULTILINE)
 
 
 class BM25Retriever(BaseRetriever):
@@ -159,7 +160,35 @@ def split_by_sections(text, source, book_name, section_marker="==="):
     return documents
 
 
+def split_by_markdown_headers(text, source, book_name):
+    sections = re.split(r"(?=^#{1,6}\s+)", text, flags=re.MULTILINE)
+    documents = []
+    for i, section in enumerate(sections):
+        section = section.strip()
+        if not section:
+            continue
+        header_match = re.match(r"^#{1,6}\s+(.+)$", section, re.MULTILINE)
+        if header_match:
+            heading = header_match.group(1).strip()
+            section = re.sub(r"^#{1,6}\s+", "", section, count=1, flags=re.MULTILINE).strip()
+        else:
+            heading = "Introduction"
+        documents.append(
+            Document(
+                page_content=section,
+                metadata={
+                    "source": source,
+                    "book": book_name,
+                    "section": heading,
+                },
+            )
+        )
+    return documents
+
+
 def smart_split(text, source, book_name):
+    if MD_HEADER_RE.search(text):
+        return split_by_markdown_headers(text, source, book_name)
     if book_name == "The Hobbit" and re.search(CHAPTER_RE, text):
         return split_by_chapters(text, source, book_name)
     if "===" in text:
@@ -185,25 +214,31 @@ def load_documents():
     )
 
     pdf_files = glob.glob("data/*.pdf")
-    if not pdf_files:
+    md_files = glob.glob("data/*.md")
+    doc_files = pdf_files + md_files
+    if not doc_files:
         raise FileNotFoundError(
-            "No PDF files found in data/. "
-            "Place your Tolkien PDF files in the data/ folder first."
+            "No PDF or Markdown files found in data/. "
+            "Place your Tolkien PDF or Markdown files in the data/ folder first."
         )
 
     documents = []
-    for pdf in pdf_files:
-        book_name = extract_book_name(pdf)
+    for path in doc_files:
+        book_name = extract_book_name(path)
         text = ""
-        with pymupdf.open(pdf) as doc:
-            for page in doc:
-                page_text = page.get_text()
-                if page_text.strip():
-                    text += "\n" + page_text.strip()
-        for block in smart_split(text, pdf, book_name):
+        if path.endswith(".md"):
+            with open(path, "r", encoding="utf-8") as f:
+                text = f.read()
+        else:
+            with pymupdf.open(path) as doc:
+                for page in doc:
+                    page_text = page.get_text()
+                    if page_text.strip():
+                        text += "\n" + page_text.strip()
+        for block in smart_split(text, path, book_name):
             documents.extend(splitter.split_documents([block]))
 
-    print(f"Loaded {len(documents)} chunks from {len(pdf_files)} PDF(s).")
+    print(f"Loaded {len(documents)} chunks from {len(doc_files)} source(s).")
     return documents, True
 
 
